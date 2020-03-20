@@ -4,6 +4,8 @@ from sympy import *
 import math as m
 from numpy.linalg import *
 
+#
+# Jeff Davis (214238414) - Photogrammetry Lab 06
 
 # Data 
 data = pd.read_csv(r"C:/Users/jcdav/Documents/GitHub/Photo-Lab-6/data.csv")
@@ -13,16 +15,14 @@ im_coord = np.array(data[6:9,1:5],dtype=float) # Image Coordinates
 f = 101.4 # Focal Length in mm
 
 
-
 # Step 1 - Initial Values for the Ground Coordinates
-
 # Baseline = L2 - L1
 B = np.array([[ex[1,0] - ex[0,0]],
 [ex[1,1] - ex[0,1]],
 [ex[1,2] - ex[0,2]]])
 
 
-# Rotation Matrices for im 1 and 2
+# Rotation Matrices
 def Rot(o,p,k):
     o = m.radians(o)
     p = m.radians(p)
@@ -40,8 +40,9 @@ def Rot(o,p,k):
     M = np.array([[m11,m12,m13],[m21,m22,m23],[m31,m32,m33]],dtype=float)
     return M
 
-R1 = Rot(ex[0,3],ex[0,4],ex[0,5])
-R2 = Rot(ex[1,3],ex[1,4],ex[1,5])
+R1 = Rot(ex[0,3],ex[0,4],ex[0,5]) # Rotation Matrix Image 1
+R2 = Rot(ex[1,3],ex[1,4],ex[1,5]) # Rotation Matrix Image 2
+
 
 # Determine Lambda 
 pt1 = np.array([im_coord[0,0],im_coord[0,1],-f],dtype=float)
@@ -54,17 +55,62 @@ a = np.array([[-u1[0],u2[0]],[-u1[1],u2[1]]])
 b = np.array([B[0],B[1]])
 lam = solve(a,b)
 
+
 # Determine initial values for the ground coordinates of the selected tie points:
 X1 = np.array([ex[0,0],ex[0,1],ex[0,2]],dtype=float) + lam[0]*R1@pt1
 X2 = np.array([ex[0,0],ex[0,1],ex[0,2]],dtype=float) + lam[0]*R1@pt2
 X3 = np.array([ex[0,0],ex[0,1],ex[0,2]],dtype=float) + lam[0]*R1@pt3
 
 
-# Step 2 - Observation Equations
-
+# Step 2 - Observation Equations - First Design Matrix 
 # r s and q terms:
+def rsq(pt,Xl,Yl,Zl,M):
+    r = M[0,0]*(pt[0] - Xl) + M[0,1]*(pt[1] - Yl) + M[0,2]*(pt[2] - Zl)
+    s = M[1,0]*(pt[0] - Xl) + M[1,1]*(pt[1] - Yl) + M[1,2]*(pt[2] - Zl)
+    q = M[2,0]*(pt[0] - Xl) + M[2,1]*(pt[1] - Yl) + M[2,2]*(pt[2] - Zl)
+    return r,s,q
+
+# r,s and q for each approximated ground tie point, for each image
+r11,s11,q11 = rsq(X1,ex[0,0],ex[0,1],ex[0,2],R1) # Im 1 gr. pt 1
+r12,s12,q12 = rsq(X2,ex[0,0],ex[0,1],ex[0,2],R1) # Im 1 gr. pt 2
+r13,s13,q13 = rsq(X3,ex[0,0],ex[0,1],ex[0,2],R1) # Im 1 gr. pt 3
+r21,s21,q21 = rsq(X1,ex[1,0],ex[1,1],ex[1,2],R2) # Im 2 gr. pt 1
+r22,s22,q22 = rsq(X2,ex[1,0],ex[1,1],ex[1,2],R2) # Im 2 gr. pt 2
+r23,s23,q23 = rsq(X3,ex[1,0],ex[1,1],ex[1,2],R2) # Im 2 gr. pt 3
 
 
+# Partial with respect to X,Y,Z
+def A(r,s,q,M):
+    f = 101.4
+    b14 = (f/q**2)*(r*M[2,0] - q*M[0,0])
+    b15 = (f/q**2)*(r*M[2,1] - q*M[0,1])
+    b16 = (f/q**2)*(r*M[2,2] - q*M[0,2])
+    b24 = (f/q**2)*(s*M[2,0] - q*M[1,0])
+    b25 = (f/q**2)*(s*M[2,1] - q*M[1,1])
+    b26 = (f/q**2)*(s*M[2,2] - q*M[1,2])
+    return np.array([[b14,b15,b16],[b24,b25,b26]])
+
+# A Matrix elements for each ground coordinate 
+A1 = []
+A1.append(A(r11,s11,q11,R1))
+A1.append(A(r21,s21,q21,R2))
+A1 = np.reshape(np.ravel(A1),[4,3])
+
+A2 = []
+A2.append(A(r12,s12,q12,R1))
+A2.append(A(r22,s22,q22,R2))
+A2 = np.reshape(np.ravel(A2),[4,3])
+
+A3 = []
+A3.append(A(r13,s13,q13,R1))
+A3.append(A(r23,s23,q23,R2))
+A3 = np.reshape(np.ravel(A3),[4,3])
+
+#A = blockDiag
+
+def mis(r,s,q,im):
+    f = 101.4
+    pass
 
 
 
