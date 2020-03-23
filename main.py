@@ -133,6 +133,7 @@ for i in range(6):
     J23,K23 = mis(r23,s23,q23,im_coord[2,2:4]) # Im 2 Pt 3
     w = [J11, K11, J21, K21, J12, K12, J22, K22, J13, K13, J23, K23]
     w = np.array(w,dtype=float)
+    print(w)
 
     # Adjustment
     dx = inv(A.T@A)@(A.T@w)
